@@ -87,6 +87,8 @@ function App() {
   const [newUserPassword, setNewUserPassword] = useState('')
   const [newUserRole, setNewUserRole] = useState('user')
   const [adminUsers, setAdminUsers] = useState([])
+  const [resetUserId, setResetUserId] = useState('')
+  const [resetPassword, setResetPassword] = useState('')
 
   const [newClientName, setNewClientName] = useState('')
   const [editingClientId, setEditingClientId] = useState(null)
@@ -568,6 +570,23 @@ function App() {
     }
   }
 
+  const handleResetPassword = async (event) => {
+    event.preventDefault()
+    if (!resetUserId || !resetPassword) {
+      return
+    }
+    try {
+      await apiFetch(token, `/api/admin/users/${resetUserId}/reset-password`, {
+        method: 'POST',
+        body: { password: resetPassword },
+      })
+      setResetUserId('')
+      setResetPassword('')
+    } catch (error) {
+      setDataError(error.message)
+    }
+  }
+
   const handleAddClient = async (event) => {
     event.preventDefault()
     const trimmedName = newClientName.trim()
@@ -844,6 +863,31 @@ function App() {
                 </select>
               </label>
               <button type="submit">Create account</button>
+            </form>
+            <form className="form" onSubmit={handleResetPassword}>
+              <label>
+                Reset password for
+                <select
+                  value={resetUserId}
+                  onChange={(event) => setResetUserId(event.target.value)}
+                >
+                  <option value="">Select a user</option>
+                  {adminUsers.map((entry) => (
+                    <option key={entry._id} value={entry._id}>
+                      {entry.name || entry.email} · {entry.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                New temp password
+                <input
+                  type="text"
+                  value={resetPassword}
+                  onChange={(event) => setResetPassword(event.target.value)}
+                />
+              </label>
+              <button type="submit">Reset password</button>
             </form>
             {adminUsers.length > 0 && (
               <div className="admin-list">

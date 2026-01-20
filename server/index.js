@@ -185,6 +185,25 @@ app.post('/api/admin/users', authMiddleware, adminOnly, async (req, res) => {
   res.status(201).json({ user: newUser.toJSON() })
 })
 
+app.post(
+  '/api/admin/users/:id/reset-password',
+  authMiddleware,
+  adminOnly,
+  async (req, res) => {
+    const { password } = req.body
+    if (!password) {
+      return res.status(400).json({ message: 'Password required' })
+    }
+    const user = await User.findById(req.params.id)
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+    user.passwordHash = await bcrypt.hash(password, 10)
+    await user.save()
+    res.json({ message: 'Password updated' })
+  }
+)
+
 app.get('/api/work-types', authMiddleware, async (req, res) => {
   const workTypes = await WorkType.find({ owner: req.user._id }).sort({
     createdAt: -1,
