@@ -772,7 +772,7 @@ function App() {
       <header className="hero">
         <div>
           <p className="eyebrow">Work Tools</p>
-          <h1>Timesheet dashboard</h1>
+          <h1>Timesheet Dashboard</h1>
           <p className="hero-subtitle">
             Capture billable work, keep weekly totals for invoicing, and stay
             ready for follow-ups.
@@ -788,7 +788,7 @@ function App() {
           {dataError && <div className="alert">{dataError}</div>}
         </div>
         <div className="hero-card">
-          <h2>Invoice tallys</h2>
+          <h2>Invoice Tallys</h2>
           <div className="hero-metric">
             <span>Total logged</span>
             <strong>{formatCurrency(overallTotal)}</strong>
@@ -812,7 +812,7 @@ function App() {
         <section className="grid">
           <div className="panel" style={{ '--delay': '20ms' }}>
             <div className="panel-header">
-              <h2>Admin controls</h2>
+              <h2>Admin Controls</h2>
               <p>Create users and review everyone’s entries.</p>
             </div>
             <div className="admin-controls">
@@ -906,7 +906,7 @@ function App() {
 
           <div className="panel" style={{ '--delay': '40ms' }}>
             <div className="panel-header">
-              <h2>Client roster</h2>
+              <h2>Client Roster</h2>
               <p>Admin-managed client list for time entries.</p>
             </div>
             <ul className="roster-list">
@@ -973,7 +973,7 @@ function App() {
 
           <div className="panel" style={{ '--delay': '60ms' }}>
             <div className="panel-header">
-              <h2>Project roster</h2>
+              <h2>Project Roster</h2>
               <p>Projects can be linked to a client.</p>
             </div>
             <ul className="roster-list">
@@ -1080,7 +1080,7 @@ function App() {
       <section className="grid">
         <div className="panel" style={{ '--delay': '60ms' }}>
           <div className="panel-header">
-            <h2>Work types</h2>
+            <h2>Work Types</h2>
             <p>Keep your rates handy.</p>
           </div>
           {dataLoading && workTypes.length === 0 ? (
@@ -1258,7 +1258,7 @@ function App() {
 
         <div className="panel panel-wide" style={{ '--delay': '180ms' }}>
           <div className="panel-header">
-            <h2>Daily log</h2>
+            <h2>Daily Log</h2>
             <p>Grouped by date for quick invoice checks.</p>
           </div>
           {sortedDates.length === 0 ? (
@@ -1442,7 +1442,7 @@ function App() {
       <section className="grid">
         <div className="panel" style={{ '--delay': '240ms' }}>
           <div className="panel-header">
-            <h2>Weekly totals</h2>
+            <h2>Weekly Totals</h2>
             <p>Track what is ready to invoice.</p>
           </div>
           {weeklyKeys.length === 0 ? (
