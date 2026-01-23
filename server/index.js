@@ -62,6 +62,7 @@ const entrySchema = new mongoose.Schema(
     workTypeName: { type: String, required: true },
     rate: { type: Number, required: true },
     hours: { type: Number, required: true },
+    description: { type: String, trim: true },
     clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client' },
     clientName: { type: String, trim: true },
     projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project' },
@@ -378,7 +379,7 @@ app.get('/api/entries', authMiddleware, async (req, res) => {
 })
 
 app.post('/api/entries', authMiddleware, async (req, res) => {
-  const { date, workTypeId, hours, clientId, projectId } = req.body
+  const { date, workTypeId, hours, clientId, projectId, description } = req.body
   if (!date || !workTypeId || !hours) {
     return res
       .status(400)
@@ -412,6 +413,7 @@ app.post('/api/entries', authMiddleware, async (req, res) => {
     workTypeName: workType.name,
     rate: workType.rate,
     hours,
+    description: typeof description === 'string' ? description.trim() : undefined,
     clientId: client?._id,
     clientName: client?.name,
     projectId: project?._id,
@@ -432,7 +434,8 @@ app.put('/api/entries/:id', authMiddleware, async (req, res) => {
     return res.status(403).json({ message: 'Not authorized' })
   }
 
-  const { date, hours, clientId, projectId, billed, workTypeId } = req.body
+  const { date, hours, clientId, projectId, billed, workTypeId, description } =
+    req.body
   if (date) {
     entry.date = date
   }
@@ -441,6 +444,10 @@ app.put('/api/entries/:id', authMiddleware, async (req, res) => {
   }
   if (typeof billed === 'boolean') {
     entry.billed = billed
+  }
+  if (typeof description === 'string') {
+    const trimmed = description.trim()
+    entry.description = trimmed ? trimmed : undefined
   }
   if (clientId === '') {
     entry.clientId = undefined

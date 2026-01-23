@@ -1,5 +1,5 @@
 .app {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 2.5rem clamp(1.25rem, 3vw, 3.5rem) 4rem;
   position: relative;
@@ -117,7 +117,7 @@
 .grid {
   display: grid;
   gap: 1.6rem;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   margin-bottom: 1.6rem;
 }
 
@@ -129,7 +129,26 @@
   border: 2px solid rgba(126, 96, 42, 0.4);
   animation: panel-rise 0.7s ease both;
   animation-delay: var(--delay, 0ms);
+  max-height: 800px;
+    overflow-y: scroll; /* or auto, depending on your layout */
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+  /* overflow-y: auto;  */
 }
+
+.panelLong {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 24px;
+  padding: 1.8rem;
+  box-shadow: var(--shadow-soft);
+  border: 2px solid rgba(126, 96, 42, 0.4);
+  animation: panel-rise 0.7s ease both;
+  animation-delay: var(--delay, 0ms);
+  max-height: 800px;
+
+  /* overflow-y: auto;  */
+}
+
 
 .panel-wide {
   grid-column: span 2;

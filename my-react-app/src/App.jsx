@@ -74,6 +74,7 @@ function App() {
   const [entryHours, setEntryHours] = useState('1')
   const [entryClientId, setEntryClientId] = useState('')
   const [entryProjectId, setEntryProjectId] = useState('')
+  const [entryDescription, setEntryDescription] = useState('')
 
   const [editingEntryId, setEditingEntryId] = useState(null)
   const [editingEntryDate, setEditingEntryDate] = useState('')
@@ -81,6 +82,7 @@ function App() {
   const [editingEntryHours, setEditingEntryHours] = useState('')
   const [editingEntryClientId, setEditingEntryClientId] = useState('')
   const [editingEntryProjectId, setEditingEntryProjectId] = useState('')
+  const [editingEntryDescription, setEditingEntryDescription] = useState('')
 
   const [newUserName, setNewUserName] = useState('')
   const [newUserEmail, setNewUserEmail] = useState('')
@@ -381,12 +383,14 @@ function App() {
           hours: hoursValue,
           clientId: entryClientId || null,
           projectId: entryProjectId || null,
+          description: entryDescription,
         },
       })
       setEntries((prev) => [payload.entry, ...prev])
       setEntryHours('1')
       setEntryClientId('')
       setEntryProjectId('')
+      setEntryDescription('')
     } catch (error) {
       setDataError(error.message)
     }
@@ -399,6 +403,7 @@ function App() {
     setEditingEntryHours(String(entry.hours))
     setEditingEntryClientId(entry.clientId || '')
     setEditingEntryProjectId(entry.projectId || '')
+    setEditingEntryDescription(entry.description || '')
   }
 
   const cancelEditEntry = () => {
@@ -408,6 +413,7 @@ function App() {
     setEditingEntryHours('')
     setEditingEntryClientId('')
     setEditingEntryProjectId('')
+    setEditingEntryDescription('')
   }
 
   const saveEditEntry = async (event) => {
@@ -428,6 +434,7 @@ function App() {
             hours: hoursValue,
             clientId: editingEntryClientId,
             projectId: editingEntryProjectId,
+            description: editingEntryDescription,
           },
         }
       )
@@ -507,8 +514,27 @@ function App() {
     }
     const includeOwner = isAdmin && viewAll
     const headers = includeOwner
-      ? ['Date', 'User', 'Client', 'Project', 'Work Type', 'Hours', 'Rate', 'Total']
-      : ['Date', 'Client', 'Project', 'Work Type', 'Hours', 'Rate', 'Total']
+      ? [
+          'Date',
+          'User',
+          'Client',
+          'Project',
+          'Work Type',
+          'Description',
+          'Hours',
+          'Rate',
+          'Total',
+        ]
+      : [
+          'Date',
+          'Client',
+          'Project',
+          'Work Type',
+          'Description',
+          'Hours',
+          'Rate',
+          'Total',
+        ]
     const rows = [
       headers,
       ...unbilledEntries.map((entry) => {
@@ -517,6 +543,7 @@ function App() {
           entry.clientName || entry.client || '',
           entry.projectName || entry.project || '',
           entry.workTypeName,
+          entry.description || '',
           entry.hours,
           entry.rate,
           (entry.rate * entry.hours).toFixed(2),
@@ -1250,6 +1277,17 @@ function App() {
                   onChange={(event) => setEntryHours(event.target.value)}
                 />
               </label>
+              <label>
+                Description of Work
+                <input
+                  type="text"
+                  minLength="5"
+                  maxLength="100"
+                  placeholder="Brief description of the work performed"
+                  value={entryDescription}
+                  onChange={(event) => setEntryDescription(event.target.value)}
+                />
+              </label>
               <div className="total-row">
                 <span>Entry total</span>
                 <strong>{formatCurrency(entryTotal)}</strong>
@@ -1311,6 +1349,11 @@ function App() {
                               <span>
                                 {entry.hours}h · {formatCurrency(entry.rate)}/hr
                               </span>
+                              {entry.description && (
+                                <span className="tagline">
+                                  {entry.description}
+                                </span>
+                              )}
                             </div>
                             <div className="log-row-actions">
                               <div className="row-total">
@@ -1429,6 +1472,18 @@ function App() {
                   step="0.25"
                   value={editingEntryHours}
                   onChange={(event) => setEditingEntryHours(event.target.value)}
+                />
+              </label>
+              <label>
+                Description of Work
+                <input
+                  type="text"
+                  minLength="5"
+                  maxLength="100"
+                  value={editingEntryDescription}
+                  onChange={(event) =>
+                    setEditingEntryDescription(event.target.value)
+                  }
                 />
               </label>
               <div className="row-buttons">
