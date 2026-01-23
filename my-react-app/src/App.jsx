@@ -773,10 +773,13 @@ function App() {
         <div>
           <p className="eyebrow">Work Tools</p>
           <h1>Timesheet Dashboard</h1>
-          <p className="hero-subtitle">
+          <p className="user-name">
+            Welcome, {user?.name || user?.email}
+          </p>
+          {/* <p className="hero-subtitle">
             Capture billable work, keep weekly totals for invoicing, and stay
             ready for follow-ups.
-          </p>
+          </p> */}
           <div className="hero-actions">
             <span className="pill">
               {user?.name || user?.email} · {user?.role}
@@ -1296,15 +1299,15 @@ function App() {
                                 entry.projectName ||
                                 entry.client ||
                                 entry.project) && (
-                                <span className="tagline">
-                                  [
+                                  <span className="tagline">
+                                    [
                                     entry.clientName || entry.client,
                                     entry.projectName || entry.project,
-                                  ]
+                                    ]
                                     .filter(Boolean)
                                     .join(' · ')}
-                                </span>
-                              )}
+                                  </span>
+                                )}
                               <span>
                                 {entry.hours}h · {formatCurrency(entry.rate)}/hr
                               </span>
@@ -1477,7 +1480,8 @@ function App() {
                       Mark week billed
                     </button>
                   </div>
-                )}
+                )
+              }
               )}
             </div>
           )}

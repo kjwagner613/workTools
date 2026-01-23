@@ -24,6 +24,13 @@
   border: 1px solid rgba(191, 164, 130, 0.4);
 }
 
+.user-name {
+  font-weight: 700;
+  color: var(--neutral-900);
+  font-size: 1.4rem;
+  margin-left: 2rem;
+}
+
 .hero {
   display: grid;
   gap: 2rem;
@@ -486,6 +493,7 @@ button:disabled {
     opacity: 0;
     transform: translateY(16px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
