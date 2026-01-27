@@ -450,6 +450,12 @@ function App() {
   }
 
   const deleteEntry = async (entryId) => {
+    const confirmed = window.confirm(
+      'Delete this entry? It will be hidden from the app but kept in the database.'
+    )
+    if (!confirmed) {
+      return
+    }
     try {
       await apiFetch(token, `/api/entries/${entryId}`, { method: 'DELETE' })
       setEntries((prev) => prev.filter((entry) => entry._id !== entryId))

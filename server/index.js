@@ -68,6 +68,7 @@ const entrySchema = new mongoose.Schema(
     projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project' },
     projectName: { type: String, trim: true },
     billed: { type: Boolean, default: false },
+    deletedAt: { type: Date },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: true }
@@ -368,7 +369,7 @@ app.delete('/api/work-types/:id', authMiddleware, async (req, res) => {
 })
 
 app.get('/api/entries', authMiddleware, async (req, res) => {
-  const filter = { owner: req.user._id }
+  const filter = { owner: req.user._id, deletedAt: { $exists: false } }
   if (req.user.role === 'admin' && req.query.all === 'true') {
     delete filter.owner
   }
@@ -419,6 +420,7 @@ app.post('/api/entries', authMiddleware, async (req, res) => {
     projectId: project?._id,
     projectName: project?.name,
     billed: false,
+    deletedAt: undefined,
     owner: req.user._id,
   })
   res.status(201).json({ entry })
@@ -426,7 +428,7 @@ app.post('/api/entries', authMiddleware, async (req, res) => {
 
 app.put('/api/entries/:id', authMiddleware, async (req, res) => {
   const entry = await Entry.findById(req.params.id)
-  if (!entry) {
+  if (!entry || entry.deletedAt) {
     return res.status(404).json({ message: 'Entry not found' })
   }
   const isOwner = entry.owner.toString() === req.user._id.toString()
@@ -506,14 +508,15 @@ app.patch('/api/entries/bulk-billed', authMiddleware, async (req, res) => {
 
 app.delete('/api/entries/:id', authMiddleware, async (req, res) => {
   const entry = await Entry.findById(req.params.id)
-  if (!entry) {
+  if (!entry || entry.deletedAt) {
     return res.status(404).json({ message: 'Entry not found' })
   }
   const isOwner = entry.owner.toString() === req.user._id.toString()
   if (!isOwner && req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Not authorized' })
   }
-  await entry.deleteOne()
+  entry.deletedAt = new Date()
+  await entry.save()
   res.json({ message: 'Deleted' })
 })
 
