@@ -89,11 +89,38 @@ const projectSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+const purchaseOrderSchema = new mongoose.Schema(
+  {
+    poNumber: {
+      type: String,
+      trim: true,
+      default: () => `DD-${new Date().getFullYear()}-xxxx`,
+    },
+    poDate: { type: String, default: () => new Date().toISOString().slice(0, 10) },
+    vendorName: { type: String, trim: true },
+    vendorAddress: { type: String, trim: true },
+    vendorContact: { type: String, trim: true },
+    tax: { type: Number, default: 0 },
+    shipping: { type: String, default: 'TBD' },
+    lineItems: [
+      {
+        itemId: { type: String, trim: true },
+        description: { type: String, trim: true },
+        qty: { type: Number, min: 0, default: 0 },
+        unitPrice: { type: Number, min: 0, default: 0 },
+      },
+    ],
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  },
+  { timestamps: true }
+)
+
 const User = mongoose.model('User', userSchema)
 const WorkType = mongoose.model('WorkType', workTypeSchema)
 const Entry = mongoose.model('Entry', entrySchema)
 const Client = mongoose.model('Client', clientSchema)
 const Project = mongoose.model('Project', projectSchema)
+const PurchaseOrder = mongoose.model('PurchaseOrder', purchaseOrderSchema)
 
 const app = express()
 
@@ -106,7 +133,28 @@ const allowedOrigins = (
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true)
+        return
+      }
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true)
+        return
+      }
+      try {
+        const url = new URL(origin)
+        const isLocalhost =
+          url.hostname === 'localhost' || url.hostname === '127.0.0.1'
+        if (isLocalhost) {
+          callback(null, true)
+          return
+        }
+      } catch (error) {
+        // Fall through to CORS rejection.
+      }
+      callback(new Error(`Not allowed by CORS: ${origin}`))
+    },
   })
 )
 app.use(express.json())
@@ -140,6 +188,65 @@ const adminOnly = (req, res, next) => {
     return res.status(403).json({ message: 'Admin access required' })
   }
   return next()
+}
+
+const normalizePoPayload = (body = {}) => {
+  const lineItems = Array.isArray(body.lineItems) ? body.lineItems.slice(0, 20) : []
+  const fallbackDate = new Date().toISOString().slice(0, 10)
+  const poDate =
+    typeof body.poDate === 'string' && body.poDate
+      ? body.poDate
+      : fallbackDate
+  const poYear = new Date(`${poDate}T00:00:00`).getFullYear()
+  return {
+    poNumber:
+      typeof body.poNumber === 'string' && body.poNumber.trim()
+        ? body.poNumber.trim()
+        : `DD-${poYear}-xxxx`,
+    poDate,
+    vendorName: typeof body.vendorName === 'string' ? body.vendorName.trim() : '',
+    vendorAddress:
+      typeof body.vendorAddress === 'string' ? body.vendorAddress.trim() : '',
+    vendorContact:
+      typeof body.vendorContact === 'string' ? body.vendorContact.trim() : '',
+    tax: Number.isFinite(Number(body.tax)) ? Number(body.tax) : 0,
+    shipping:
+      typeof body.shipping === 'string' && body.shipping.trim()
+        ? body.shipping.trim()
+        : 'TBD',
+    lineItems: lineItems.map((item, index) => ({
+      itemId:
+        typeof item?.itemId === 'string' && item.itemId.trim()
+          ? item.itemId.trim()
+          : `item${index + 1}`,
+      description:
+        typeof item?.description === 'string' ? item.description.trim() : '',
+      qty: Number.isFinite(Number(item?.qty)) ? Number(item.qty) : 0,
+      unitPrice: Number.isFinite(Number(item?.unitPrice))
+        ? Number(item.unitPrice)
+        : 0,
+    })),
+  }
+}
+
+const getNextPoNumber = async (ownerId, poDate) => {
+  const year = new Date(`${poDate}T00:00:00`).getFullYear()
+  const pattern = new RegExp(`^DD-${year}-(\\d{4})$`)
+  const existing = await PurchaseOrder.find({
+    owner: ownerId,
+    poNumber: { $regex: pattern },
+  }).select('poNumber')
+
+  const highest = existing.reduce((max, purchaseOrder) => {
+    const match = purchaseOrder.poNumber.match(pattern)
+    if (!match) {
+      return max
+    }
+    const number = Number(match[1])
+    return number > max ? number : max
+  }, 0)
+
+  return `DD-${year}-${String(highest + 1).padStart(4, '0')}`
 }
 
 app.post('/api/auth/login', async (req, res) => {
@@ -316,6 +423,58 @@ app.delete('/api/projects/:id', authMiddleware, adminOnly, async (req, res) => {
   }
   await project.deleteOne()
   res.json({ message: 'Deleted' })
+})
+
+app.get('/api/purchase-orders', authMiddleware, async (req, res) => {
+  const filter = { owner: req.user._id }
+  if (req.user.role === 'admin' && req.query.all === 'true') {
+    delete filter.owner
+  }
+  const purchaseOrders = await PurchaseOrder.find(filter)
+    .sort({ updatedAt: -1 })
+    .populate('owner', 'email name')
+  res.json({ purchaseOrders })
+})
+
+app.get('/api/purchase-orders/latest', authMiddleware, async (req, res) => {
+  const purchaseOrder = await PurchaseOrder.findOne({ owner: req.user._id })
+    .sort({ updatedAt: -1 })
+    .populate('owner', 'email name')
+  res.json({ purchaseOrder })
+})
+
+app.post('/api/purchase-orders', authMiddleware, async (req, res) => {
+  const payload = normalizePoPayload(req.body)
+  if (/x{2,}/i.test(payload.poNumber)) {
+    payload.poNumber = await getNextPoNumber(req.user._id, payload.poDate)
+  }
+  const purchaseOrder = await PurchaseOrder.create({
+    ...payload,
+    owner: req.user._id,
+  })
+  res.status(201).json({ purchaseOrder })
+})
+
+app.put('/api/purchase-orders/:id', authMiddleware, async (req, res) => {
+  const purchaseOrder = await PurchaseOrder.findById(req.params.id)
+  if (!purchaseOrder) {
+    return res.status(404).json({ message: 'Purchase order not found' })
+  }
+  const isOwner = purchaseOrder.owner.toString() === req.user._id.toString()
+  if (!isOwner && req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Not authorized' })
+  }
+  const payload = normalizePoPayload(req.body)
+  purchaseOrder.poNumber = payload.poNumber
+  purchaseOrder.poDate = payload.poDate
+  purchaseOrder.vendorName = payload.vendorName
+  purchaseOrder.vendorAddress = payload.vendorAddress
+  purchaseOrder.vendorContact = payload.vendorContact
+  purchaseOrder.tax = payload.tax
+  purchaseOrder.shipping = payload.shipping
+  purchaseOrder.lineItems = payload.lineItems
+  await purchaseOrder.save()
+  res.json({ purchaseOrder })
 })
 
 app.post('/api/work-types', authMiddleware, async (req, res) => {

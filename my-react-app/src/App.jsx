@@ -3,8 +3,17 @@ import './App.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 const TOKEN_KEY = 'work-tools-token'
+const MAX_PO_ITEMS = 20
 
 const todayISO = new Date().toISOString().slice(0, 10)
+const getPoDraftNumber = (dateValue = todayISO) =>
+  `DD-${new Date(`${dateValue}T00:00:00`).getFullYear()}-xxxx`
+const createPoLineItem = (index) => ({
+  id: `item${index + 1}`,
+  description: '',
+  qty: '',
+  unitPrice: '',
+})
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat('en-US', {
@@ -19,6 +28,13 @@ const formatDate = (value) =>
     day: 'numeric',
     year: 'numeric',
   }).format(new Date(`${value}T00:00:00`))
+
+const formatTimestampDate = (value) =>
+  new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(value))
 
 const getWeekStart = (value) => {
   const date = new Date(`${value}T00:00:00`)
@@ -59,6 +75,10 @@ function App() {
   const [dataLoading, setDataLoading] = useState(false)
   const [dataError, setDataError] = useState('')
   const [viewAll, setViewAll] = useState(false)
+  const [activeModule, setActiveModule] = useState('timesheet')
+  const [showModuleMenu, setShowModuleMenu] = useState(true)
+  const [timesheetPage, setTimesheetPage] = useState('entry')
+  const [adminPage, setAdminPage] = useState('users')
 
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
@@ -101,6 +121,21 @@ function App() {
   const [editingProjectId, setEditingProjectId] = useState(null)
   const [editingProjectName, setEditingProjectName] = useState('')
   const [editingProjectClientId, setEditingProjectClientId] = useState('')
+  const [poNumber, setPoNumber] = useState(getPoDraftNumber(todayISO))
+  const [poDate, setPoDate] = useState(todayISO)
+  const [vendorName, setVendorName] = useState('')
+  const [vendorAddress, setVendorAddress] = useState('')
+  const [vendorContact, setVendorContact] = useState('')
+  const [poTax, setPoTax] = useState('0')
+  const [poShipping, setPoShipping] = useState('TBD')
+  const [poId, setPoId] = useState('')
+  const [poSaving, setPoSaving] = useState(false)
+  const [poViewAll, setPoViewAll] = useState(false)
+  const [poListLoading, setPoListLoading] = useState(false)
+  const [poRecords, setPoRecords] = useState([])
+  const [poLineItems, setPoLineItems] = useState(() =>
+    Array.from({ length: 4 }, (_, index) => createPoLineItem(index))
+  )
 
   const isAdmin = user?.role === 'admin'
 
@@ -173,6 +208,39 @@ function App() {
     )
   }, [unbilledEntries])
 
+  const poSubtotal = useMemo(() => {
+    return poLineItems.reduce((sum, item) => {
+      const qty = Number(item.qty)
+      const unitPrice = Number(item.unitPrice)
+      if (!qty || !unitPrice) {
+        return sum
+      }
+      return sum + qty * unitPrice
+    }, 0)
+  }, [poLineItems])
+
+  const poTaxValue = Number(poTax) || 0
+  const poShippingValue = Number(poShipping)
+  const poTotal = poSubtotal + poTaxValue + (Number.isFinite(poShippingValue) ? poShippingValue : 0)
+  const getPoListTotal = (purchaseOrder) => {
+    const subtotal = (purchaseOrder.lineItems || []).reduce((sum, item) => {
+      const qty = Number(item?.qty)
+      const unitPrice = Number(item?.unitPrice)
+      if (!qty || !unitPrice) {
+        return sum
+      }
+      return sum + qty * unitPrice
+    }, 0)
+    const tax = Number(purchaseOrder.tax) || 0
+    const shipping = Number(purchaseOrder.shipping)
+    return subtotal + tax + (Number.isFinite(shipping) ? shipping : 0)
+  }
+
+  const moduleOptions = [
+    { id: 'timesheet', label: 'Timesheet' },
+    { id: 'po', label: 'PO' },
+  ]
+
   const refreshWorkTypes = async () => {
     const payload = await apiFetch(token, '/api/work-types')
     setWorkTypes(payload.workTypes)
@@ -202,6 +270,60 @@ function App() {
     }
     const payload = await apiFetch(token, '/api/admin/users')
     setAdminUsers(payload.users)
+  }
+
+  const applyPoData = (purchaseOrder) => {
+    if (!purchaseOrder) {
+      setPoId('')
+      setPoNumber(getPoDraftNumber(todayISO))
+      setPoDate(todayISO)
+      setVendorName('')
+      setVendorAddress('')
+      setVendorContact('')
+      setPoTax('0')
+      setPoShipping('TBD')
+      setPoLineItems(
+        Array.from({ length: 4 }, (_, index) => createPoLineItem(index))
+      )
+      return
+    }
+    setPoId(purchaseOrder._id || '')
+    setPoNumber(purchaseOrder.poNumber || getPoDraftNumber(purchaseOrder.poDate || todayISO))
+    setPoDate(purchaseOrder.poDate || todayISO)
+    setVendorName(purchaseOrder.vendorName || '')
+    setVendorAddress(purchaseOrder.vendorAddress || '')
+    setVendorContact(purchaseOrder.vendorContact || '')
+    setPoTax(String(purchaseOrder.tax ?? 0))
+    setPoShipping(purchaseOrder.shipping || 'TBD')
+    const mappedItems = Array.isArray(purchaseOrder.lineItems)
+      ? purchaseOrder.lineItems.slice(0, MAX_PO_ITEMS).map((item, index) => ({
+          id: item.itemId || `item${index + 1}`,
+          description: item.description || '',
+          qty: String(item.qty ?? ''),
+          unitPrice: String(item.unitPrice ?? ''),
+        }))
+      : []
+    setPoLineItems(
+      mappedItems.length > 0
+        ? mappedItems
+        : Array.from({ length: 4 }, (_, index) => createPoLineItem(index))
+    )
+  }
+
+  const refreshLatestPo = async () => {
+    const payload = await apiFetch(token, '/api/purchase-orders/latest')
+    applyPoData(payload.purchaseOrder)
+  }
+
+  const refreshPoRecords = async (all = false) => {
+    setPoListLoading(true)
+    try {
+      const query = isAdmin && all ? '?all=true' : ''
+      const payload = await apiFetch(token, `/api/purchase-orders${query}`)
+      setPoRecords(payload.purchaseOrders)
+    } finally {
+      setPoListLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -238,6 +360,8 @@ function App() {
           refreshEntries(isAdmin && viewAll),
           refreshClients(),
           refreshProjects(),
+          refreshLatestPo(),
+          refreshPoRecords(isAdmin && poViewAll),
         ])
         if (isAdmin) {
           await refreshAdminUsers()
@@ -250,7 +374,7 @@ function App() {
       }
     }
     loadData()
-  }, [user, viewAll])
+  }, [user, viewAll, poViewAll])
 
   useEffect(() => {
     if (entryWorkTypeId || workTypes.length === 0) {
@@ -283,10 +407,14 @@ function App() {
     localStorage.removeItem(TOKEN_KEY)
     setToken(null)
     setUser(null)
+    setShowModuleMenu(true)
     setEntries([])
     setWorkTypes([])
     setClients([])
     setProjects([])
+    setPoRecords([])
+    setPoViewAll(false)
+    applyPoData(null)
   }
 
   const handleAddWorkType = async (event) => {
@@ -764,6 +892,113 @@ function App() {
     )
   }
 
+  const updatePoLineItem = (index, field, value) => {
+    setPoLineItems((prev) =>
+      prev.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item
+      )
+    )
+  }
+
+  const addPoLineItem = () => {
+    setPoLineItems((prev) => {
+      if (prev.length >= MAX_PO_ITEMS) {
+        return prev
+      }
+      return [...prev, createPoLineItem(prev.length)]
+    })
+  }
+
+  const removePoLineItem = (index) => {
+    setPoLineItems((prev) => prev.filter((_, itemIndex) => itemIndex !== index))
+  }
+
+  const handleExportPoPdf = () => {
+    window.print()
+  }
+
+  const handleSavePo = async () => {
+    const body = {
+      poNumber,
+      poDate,
+      vendorName,
+      vendorAddress,
+      vendorContact,
+      tax: poTax,
+      shipping: poShipping,
+      lineItems: poLineItems.map((item, index) => ({
+        itemId: item.id || `item${index + 1}`,
+        description: item.description,
+        qty: item.qty,
+        unitPrice: item.unitPrice,
+      })),
+    }
+
+    setPoSaving(true)
+    try {
+      const payload = poId
+        ? await apiFetch(token, `/api/purchase-orders/${poId}`, {
+            method: 'PUT',
+            body,
+          })
+        : await apiFetch(token, '/api/purchase-orders', {
+            method: 'POST',
+            body,
+          })
+      applyPoData(payload.purchaseOrder)
+      await refreshPoRecords(isAdmin && poViewAll)
+      setDataError('')
+    } catch (error) {
+      setDataError(error.message)
+    } finally {
+      setPoSaving(false)
+    }
+  }
+
+  const handleStartNewPo = () => {
+    setPoId('')
+    setPoNumber(getPoDraftNumber(todayISO))
+    setPoDate(todayISO)
+    setVendorName('')
+    setVendorAddress('')
+    setVendorContact('')
+    setPoTax('0')
+    setPoShipping('TBD')
+    setPoLineItems(Array.from({ length: 4 }, (_, index) => createPoLineItem(index)))
+  }
+
+  const handleDuplicatePo = async () => {
+    const body = {
+      poNumber: getPoDraftNumber(poDate),
+      poDate,
+      vendorName,
+      vendorAddress,
+      vendorContact,
+      tax: poTax,
+      shipping: poShipping,
+      lineItems: poLineItems.map((item, index) => ({
+        itemId: item.id || `item${index + 1}`,
+        description: item.description,
+        qty: item.qty,
+        unitPrice: item.unitPrice,
+      })),
+    }
+    setPoSaving(true)
+    try {
+      const payload = await apiFetch(token, '/api/purchase-orders', {
+        method: 'POST',
+        body,
+      })
+      applyPoData(payload.purchaseOrder)
+      await refreshPoRecords(isAdmin && poViewAll)
+      setDataError('')
+    } catch (error) {
+      setDataError(error.message)
+    } finally {
+      setPoSaving(false)
+    }
+  }
+
   if (!token || authLoading) {
     return (
       <div className="auth-shell">
@@ -802,6 +1037,95 @@ function App() {
 
   return (
     <div className="app">
+      {showModuleMenu ? (
+        <section className="module-screen">
+          <div className="module-screen-header">
+            <img
+              src="/DD-logo-vented-wAlpha.png"
+              alt="Discrete Development logo"
+              className="module-screen-logo"
+            />
+            <p className="eyebrow">Discrete Development</p>
+            <h1>Work Tools</h1>
+            <p className="module-screen-subtitle">
+              Choose a workspace module. More tools can be added here later.
+            </p>
+            <span className="pill">
+              {user?.name || user?.email} · {user?.role}
+            </span>
+          </div>
+          <div className="module-grid">
+            {moduleOptions.map((module) => (
+              <button
+                key={module.id}
+                type="button"
+                className="module-card"
+                onClick={() => {
+                  setActiveModule(module.id)
+                  if (module.id === 'timesheet') {
+                    setTimesheetPage('entry')
+                  }
+                  setShowModuleMenu(false)
+                }}
+              >
+                <h2>{module.label}</h2>
+                <span>Open {module.label}</span>
+              </button>
+            ))}
+          </div>
+          {isAdmin && (
+            <div className="module-admin">
+              <button
+                type="button"
+                className="module-card admin-card"
+                onClick={() => {
+                  setActiveModule('admin')
+                  setAdminPage('users')
+                  setShowModuleMenu(false)
+                }}
+              >
+                <h2>Admin Controls</h2>
+                <span>Manage users, clients, and projects</span>
+              </button>
+            </div>
+          )}
+          <button type="button" className="ghost" onClick={handleLogout}>
+            Log out
+          </button>
+        </section>
+      ) : (
+        <>
+      <header className="top-nav">
+        <div className="brand-block">
+          <img
+            src="/DD-logo-vented-wAlpha.png"
+            alt="Discrete Development logo"
+            className="brand-logo"
+          />
+          <div>
+            <p className="eyebrow">Discrete Development</p>
+            <h1 className="brand-title">Work Tools</h1>
+          </div>
+        </div>
+        <div className="top-nav-actions">
+          <button
+            type="button"
+            className="ghost nav-toggle"
+            onClick={() => setShowModuleMenu(true)}
+          >
+            Menu
+          </button>
+          <span className="pill">
+            {user?.name || user?.email} · {user?.role}
+          </span>
+          <button type="button" className="ghost" onClick={handleLogout}>
+            Log out
+          </button>
+        </div>
+      </header>
+
+      {activeModule === 'timesheet' && (
+        <>
       <header className="hero">
         <div>
           <p className="eyebrow">Discrete Development's Work Tools</p>
@@ -844,276 +1168,34 @@ function App() {
         </div>
       </header>
 
-      {isAdmin && (
-        <section className="grid">
-          <div className="panel" style={{ '--delay': '20ms' }}>
-            <div className="panel-header">
-              <h2>Admin Controls</h2>
-              <p>Create users and review everyone’s entries.</p>
-            </div>
-            <div className="admin-controls">
-              <label className="toggle">
-                <input
-                  type="checkbox"
-                  checked={viewAll}
-                  onChange={(event) => setViewAll(event.target.checked)}
-                />
-                <span>View all entries</span>
-              </label>
-            </div>
-            <form className="form" onSubmit={handleCreateUser}>
-              <label>
-                Name
-                <input
-                  type="text"
-                  value={newUserName}
-                  onChange={(event) => setNewUserName(event.target.value)}
-                />
-              </label>
-              <label>
-                Email
-                <input
-                  type="email"
-                  value={newUserEmail}
-                  onChange={(event) => setNewUserEmail(event.target.value)}
-                  required
-                />
-              </label>
-              <label>
-                Temp password
-                <input
-                  type="text"
-                  value={newUserPassword}
-                  onChange={(event) => setNewUserPassword(event.target.value)}
-                  required
-                />
-              </label>
-              <label>
-                Role
-                <select
-                  value={newUserRole}
-                  onChange={(event) => setNewUserRole(event.target.value)}
-                >
-                  <option value="user">User</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </label>
-              <button type="submit">Create account</button>
-            </form>
-            <form className="form" onSubmit={handleResetPassword}>
-              <label>
-                Reset password for
-                <select
-                  value={resetUserId}
-                  onChange={(event) => setResetUserId(event.target.value)}
-                >
-                  <option value="">Select a user</option>
-                  {adminUsers.map((entry) => (
-                    <option key={entry._id} value={entry._id}>
-                      {entry.name || entry.email} · {entry.email}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                New temp password
-                <input
-                  type="text"
-                  value={resetPassword}
-                  onChange={(event) => setResetPassword(event.target.value)}
-                />
-              </label>
-              <button type="submit">Reset password</button>
-            </form>
-            {adminUsers.length > 0 && (
-              <div className="admin-list">
-                {adminUsers.map((entry) => (
-                  <div className="admin-row" key={entry._id}>
-                    <div>
-                      <strong>{entry.name || entry.email}</strong>
-                      <span>{entry.email}</span>
-                    </div>
-                    <span className="pill">{entry.role}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+      <nav className="timesheet-subnav">
+        <button
+          type="button"
+          className={`timesheet-subnav-button ${timesheetPage === 'entry' ? 'is-active' : ''}`}
+          onClick={() => setTimesheetPage('entry')}
+        >
+          Entry
+        </button>
+        <button
+          type="button"
+          className={`timesheet-subnav-button ${timesheetPage === 'daily' ? 'is-active' : ''}`}
+          onClick={() => setTimesheetPage('daily')}
+        >
+          Daily Log
+        </button>
+        <button
+          type="button"
+          className={`timesheet-subnav-button ${timesheetPage === 'weekly' ? 'is-active' : ''}`}
+          onClick={() => setTimesheetPage('weekly')}
+        >
+          Weekly Totals
+        </button>
+      </nav>
 
-          <div className="panel" style={{ '--delay': '40ms' }}>
-            <div className="panel-header">
-              <h2>Client Roster</h2>
-              <p>Admin-managed client list for time entries.</p>
-            </div>
-            <ul className="roster-list">
-              {clients.map((client) => (
-                <li key={client._id}>
-                  {editingClientId === client._id ? (
-                    <form className="roster-edit" onSubmit={saveEditClient}>
-                      <input
-                        type="text"
-                        value={editingClientName}
-                        onChange={(event) =>
-                          setEditingClientName(event.target.value)
-                        }
-                      />
-                      <div className="roster-actions">
-                        <button type="submit" className="ghost">
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost"
-                          onClick={cancelEditClient}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <>
-                      <span>{client.name}</span>
-                      <div className="roster-actions">
-                        <button
-                          type="button"
-                          className="ghost"
-                          onClick={() => startEditClient(client)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost danger"
-                          onClick={() => deleteClient(client._id)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </li>
-              ))}
-            </ul>
-            <form className="form" onSubmit={handleAddClient}>
-              <label>
-                New client
-                <input
-                  type="text"
-                  value={newClientName}
-                  onChange={(event) => setNewClientName(event.target.value)}
-                />
-              </label>
-              <button type="submit">Add client</button>
-            </form>
-          </div>
-
-          <div className="panel" style={{ '--delay': '60ms' }}>
-            <div className="panel-header">
-              <h2>Project Roster</h2>
-              <p>Projects can be linked to a client.</p>
-            </div>
-            <ul className="roster-list">
-              {projects.map((project) => {
-                const clientName = clients.find(
-                  (client) => client._id === project.clientId
-                )?.name
-                return (
-                  <li key={project._id}>
-                    {editingProjectId === project._id ? (
-                      <form className="roster-edit" onSubmit={saveEditProject}>
-                        <input
-                          type="text"
-                          value={editingProjectName}
-                          onChange={(event) =>
-                            setEditingProjectName(event.target.value)
-                          }
-                        />
-                        <select
-                          value={editingProjectClientId}
-                          onChange={(event) =>
-                            setEditingProjectClientId(event.target.value)
-                          }
-                        >
-                          <option value="">No client</option>
-                          {clients.map((client) => (
-                            <option key={client._id} value={client._id}>
-                              {client.name}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="roster-actions">
-                          <button type="submit" className="ghost">
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost"
-                            onClick={cancelEditProject}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <>
-                        <div>
-                          <strong>{project.name}</strong>
-                          {clientName && (
-                            <span className="tagline">{clientName}</span>
-                          )}
-                        </div>
-                        <div className="roster-actions">
-                          <button
-                            type="button"
-                            className="ghost"
-                            onClick={() => startEditProject(project)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost danger"
-                            onClick={() => deleteProject(project._id)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-            <form className="form" onSubmit={handleAddProject}>
-              <label>
-                New project
-                <input
-                  type="text"
-                  value={newProjectName}
-                  onChange={(event) => setNewProjectName(event.target.value)}
-                />
-              </label>
-              <label>
-                Client (optional)
-                <select
-                  value={newProjectClientId}
-                  onChange={(event) => setNewProjectClientId(event.target.value)}
-                >
-                  <option value="">No client</option>
-                  {clients.map((client) => (
-                    <option key={client._id} value={client._id}>
-                      {client.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button type="submit">Add project</button>
-            </form>
-          </div>
-        </section>
-      )}
-
+      {timesheetPage !== 'weekly' && (
       <section className="grid">
+        {timesheetPage === 'entry' && (
+          <>
         <div className="panel" style={{ '--delay': '60ms' }}>
           <div className="panel-header">
             <h2>Work Types</h2>
@@ -1302,7 +1384,10 @@ function App() {
             </form>
           )}
         </div>
+          </>
+        )}
 
+        {timesheetPage === 'daily' && (
         <div className="panel panel-wide" style={{ '--delay': '180ms' }}>
           <div className="panel-header">
             <h2>Daily Log</h2>
@@ -1344,12 +1429,12 @@ function App() {
                                 entry.client ||
                                 entry.project) && (
                                   <span className="tagline">
-                                    [
-                                    entry.clientName || entry.client,
-                                    entry.projectName || entry.project,
+                                    {[
+                                      entry.clientName || entry.client,
+                                      entry.projectName || entry.project,
                                     ]
-                                    .filter(Boolean)
-                                    .join(' · ')}
+                                      .filter(Boolean)
+                                      .join(' · ')}
                                   </span>
                                 )}
                               <span>
@@ -1406,9 +1491,11 @@ function App() {
             </div>
           )}
         </div>
+        )}
       </section>
+      )}
 
-      {editingEntryId && (
+      {timesheetPage === 'daily' && editingEntryId && (
         <section className="grid">
           <div className="panel" style={{ '--delay': '200ms' }}>
             <div className="panel-header">
@@ -1503,6 +1590,7 @@ function App() {
         </section>
       )}
 
+      {timesheetPage === 'weekly' && (
       <section className="grid">
         <div className="panel" style={{ '--delay': '240ms' }}>
           <div className="panel-header">
@@ -1556,6 +1644,616 @@ function App() {
           </button>
         </div>
       </section>
+      )}
+        </>
+      )}
+
+      {activeModule === 'admin' && isAdmin && (
+        <section className="admin-shell">
+          <div className="panel-header">
+            <h2>Admin Controls</h2>
+            <p>Manage users, clients, projects, and global timesheet visibility.</p>
+          </div>
+          <nav className="admin-subnav">
+            <button
+              type="button"
+              className={`timesheet-subnav-button ${adminPage === 'users' ? 'is-active' : ''}`}
+              onClick={() => setAdminPage('users')}
+            >
+              Users
+            </button>
+            <button
+              type="button"
+              className={`timesheet-subnav-button ${adminPage === 'clients' ? 'is-active' : ''}`}
+              onClick={() => setAdminPage('clients')}
+            >
+              Clients
+            </button>
+            <button
+              type="button"
+              className={`timesheet-subnav-button ${adminPage === 'projects' ? 'is-active' : ''}`}
+              onClick={() => setAdminPage('projects')}
+            >
+              Projects
+            </button>
+          </nav>
+
+          {dataError && <div className="alert">{dataError}</div>}
+
+          {adminPage === 'users' && (
+            <section className="grid">
+              <div className="panel" style={{ '--delay': '20ms' }}>
+                <div className="admin-controls">
+                  <label className="toggle">
+                    <input
+                      type="checkbox"
+                      checked={viewAll}
+                      onChange={(event) => setViewAll(event.target.checked)}
+                    />
+                    <span>View all timesheet entries</span>
+                  </label>
+                </div>
+                <form className="form" onSubmit={handleCreateUser}>
+                  <label>
+                    Name
+                    <input
+                      type="text"
+                      value={newUserName}
+                      onChange={(event) => setNewUserName(event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Email
+                    <input
+                      type="email"
+                      value={newUserEmail}
+                      onChange={(event) => setNewUserEmail(event.target.value)}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Temp password
+                    <input
+                      type="text"
+                      value={newUserPassword}
+                      onChange={(event) => setNewUserPassword(event.target.value)}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Role
+                    <select
+                      value={newUserRole}
+                      onChange={(event) => setNewUserRole(event.target.value)}
+                    >
+                      <option value="user">User</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </label>
+                  <button type="submit">Create account</button>
+                </form>
+                <form className="form" onSubmit={handleResetPassword}>
+                  <label>
+                    Reset password for
+                    <select
+                      value={resetUserId}
+                      onChange={(event) => setResetUserId(event.target.value)}
+                    >
+                      <option value="">Select a user</option>
+                      {adminUsers.map((entry) => (
+                        <option key={entry._id} value={entry._id}>
+                          {entry.name || entry.email} · {entry.email}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    New temp password
+                    <input
+                      type="text"
+                      value={resetPassword}
+                      onChange={(event) => setResetPassword(event.target.value)}
+                    />
+                  </label>
+                  <button type="submit">Reset password</button>
+                </form>
+                {adminUsers.length > 0 && (
+                  <div className="admin-list">
+                    {adminUsers.map((entry) => (
+                      <div className="admin-row" key={entry._id}>
+                        <div>
+                          <strong>{entry.name || entry.email}</strong>
+                          <span>{entry.email}</span>
+                        </div>
+                        <span className="pill">{entry.role}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {adminPage === 'clients' && (
+            <section className="roster-workbench">
+              <div className="panel roster-column" style={{ '--delay': '20ms' }}>
+                <div className="panel-header">
+                  <h2>Client Roster</h2>
+                  <p>Scroll list on the left. Edit or remove clients.</p>
+                </div>
+                <ul className="roster-list">
+                  {clients.map((client) => (
+                    <li key={client._id}>
+                      {editingClientId === client._id ? (
+                        <form className="roster-edit" onSubmit={saveEditClient}>
+                          <input
+                            type="text"
+                            value={editingClientName}
+                            onChange={(event) =>
+                              setEditingClientName(event.target.value)
+                            }
+                          />
+                          <div className="roster-actions">
+                            <button type="submit" className="ghost">
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              className="ghost"
+                              onClick={cancelEditClient}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <>
+                          <span>{client.name}</span>
+                          <div className="roster-actions">
+                            <button
+                              type="button"
+                              className="ghost"
+                              onClick={() => startEditClient(client)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="ghost danger"
+                              onClick={() => deleteClient(client._id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="panel" style={{ '--delay': '40ms' }}>
+                <div className="panel-header">
+                  <h2>Add Client</h2>
+                  <p>Use this form on the right to add a new client.</p>
+                </div>
+                <form className="form" onSubmit={handleAddClient}>
+                  <label>
+                    New client
+                    <input
+                      type="text"
+                      value={newClientName}
+                      onChange={(event) => setNewClientName(event.target.value)}
+                    />
+                  </label>
+                  <button type="submit">Add client</button>
+                </form>
+              </div>
+            </section>
+          )}
+
+          {adminPage === 'projects' && (
+            <section className="roster-workbench">
+              <div className="panel roster-column" style={{ '--delay': '20ms' }}>
+                <div className="panel-header">
+                  <h2>Project Roster</h2>
+                  <p>Scroll list on the left. Projects can link to clients.</p>
+                </div>
+                <ul className="roster-list">
+                  {projects.map((project) => {
+                    const clientName = clients.find(
+                      (client) => client._id === project.clientId
+                    )?.name
+                    return (
+                      <li key={project._id}>
+                        {editingProjectId === project._id ? (
+                          <form className="roster-edit" onSubmit={saveEditProject}>
+                            <input
+                              type="text"
+                              value={editingProjectName}
+                              onChange={(event) =>
+                                setEditingProjectName(event.target.value)
+                              }
+                            />
+                            <select
+                              value={editingProjectClientId}
+                              onChange={(event) =>
+                                setEditingProjectClientId(event.target.value)
+                              }
+                            >
+                              <option value="">No client</option>
+                              {clients.map((client) => (
+                                <option key={client._id} value={client._id}>
+                                  {client.name}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="roster-actions">
+                              <button type="submit" className="ghost">
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                className="ghost"
+                                onClick={cancelEditProject}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <>
+                            <div>
+                              <strong>{project.name}</strong>
+                              {clientName && (
+                                <span className="tagline">{clientName}</span>
+                              )}
+                            </div>
+                            <div className="roster-actions">
+                              <button
+                                type="button"
+                                className="ghost"
+                                onClick={() => startEditProject(project)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="ghost danger"
+                                onClick={() => deleteProject(project._id)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+              <div className="panel" style={{ '--delay': '40ms' }}>
+                <div className="panel-header">
+                  <h2>Add Project</h2>
+                  <p>Use this form on the right to add a project.</p>
+                </div>
+                <form className="form" onSubmit={handleAddProject}>
+                  <label>
+                    New project
+                    <input
+                      type="text"
+                      value={newProjectName}
+                      onChange={(event) => setNewProjectName(event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    Client (optional)
+                    <select
+                      value={newProjectClientId}
+                      onChange={(event) => setNewProjectClientId(event.target.value)}
+                    >
+                      <option value="">No client</option>
+                      {clients.map((client) => (
+                        <option key={client._id} value={client._id}>
+                          {client.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="submit">Add project</button>
+                </form>
+              </div>
+            </section>
+          )}
+        </section>
+      )}
+
+      {activeModule === 'po' && (
+        <section className="po-shell">
+          <div className="po-layout">
+            <aside className="po-history">
+              <div className="po-history-header">
+                <h3>PO History</h3>
+                {isAdmin && (
+                  <label className="toggle">
+                    <input
+                      type="checkbox"
+                      checked={poViewAll}
+                      onChange={(event) => setPoViewAll(event.target.checked)}
+                    />
+                    <span>View all users</span>
+                  </label>
+                )}
+              </div>
+              {poListLoading ? (
+                <div className="empty-state">Loading purchase orders...</div>
+              ) : poRecords.length === 0 ? (
+                <div className="empty-state">No saved purchase orders yet.</div>
+              ) : (
+                <ul className="po-history-list">
+                  {poRecords.map((record) => (
+                    <li key={record._id}>
+                      <button
+                        type="button"
+                        className={`po-history-item ${poId === record._id ? 'is-active' : ''}`}
+                        onClick={() => applyPoData(record)}
+                      >
+                        <strong>{record.poNumber || 'Untitled PO'}</strong>
+                        <span>{record.vendorName || 'No vendor'}</span>
+                        <span>{formatTimestampDate(record.updatedAt)}</span>
+                        {isAdmin && poViewAll && (
+                          <span>{record.owner?.name || record.owner?.email || 'Unknown user'}</span>
+                        )}
+                        <span>{formatCurrency(getPoListTotal(record))}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </aside>
+
+            <div>
+              <div className="po-toolbar">
+                <button type="button" onClick={handleSavePo} disabled={poSaving}>
+                  {poSaving ? 'Saving...' : poId ? 'Update PO' : 'Save PO'}
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={handleDuplicatePo}
+                  disabled={poSaving || !poId}
+                >
+                  Duplicate PO
+                </button>
+                <button type="button" onClick={handleExportPoPdf}>
+                  Export PDF
+                </button>
+                <button type="button" className="ghost" onClick={handleStartNewPo}>
+                  New PO
+                </button>
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={() => setActiveModule('timesheet')}
+                >
+                  Back to Timesheet
+                </button>
+              </div>
+
+              {dataError && <div className="alert">{dataError}</div>}
+
+              <article className="po-doc">
+            <div className="po-headline">
+              <img
+                src="/DD-logo-vented-wAlpha.png"
+                alt="Discrete Development logo"
+                className="po-logo"
+              />
+              <div>
+                <h2>DISCRETE DEVELOPMENT LLC</h2>
+                <h3>Purchase Order</h3>
+              </div>
+            </div>
+
+            <div className="po-meta-grid">
+              <label>
+                PO Number
+                <input
+                  type="text"
+                  value={poNumber}
+                  onChange={(event) => setPoNumber(event.target.value)}
+                />
+              </label>
+              <label>
+                PO Date
+                <input
+                  type="date"
+                  value={poDate}
+                  onChange={(event) => setPoDate(event.target.value)}
+                />
+              </label>
+            </div>
+            {poId && <p className="po-saved-meta">Stored in MongoDB</p>}
+
+            <div className="po-addresses">
+              <div>
+                <h4>Vendor</h4>
+                <label>
+                  Vendor Name
+                  <input
+                    type="text"
+                    value={vendorName}
+                    onChange={(event) => setVendorName(event.target.value)}
+                    placeholder="Vendor Name"
+                  />
+                </label>
+                <label>
+                  Vendor Address
+                  <textarea
+                    rows="3"
+                    value={vendorAddress}
+                    onChange={(event) => setVendorAddress(event.target.value)}
+                    placeholder="Vendor Address"
+                  />
+                </label>
+                <label>
+                  Vendor Contact
+                  <input
+                    type="text"
+                    value={vendorContact}
+                    onChange={(event) => setVendorContact(event.target.value)}
+                    placeholder="Vendor Contact"
+                  />
+                </label>
+              </div>
+              <div>
+                <h4>Ship To</h4>
+                <p>Discrete Development LLC</p>
+                <p>1800 Esplanade Ave, Number 3</p>
+                <p>Klamath Falls, Oregon 97601</p>
+                <p>Contact: Kevin Wagner | 805.651.3043</p>
+              </div>
+            </div>
+
+            <div className="po-line-items">
+              <div className="po-line-header">
+                <h4>Line Items</h4>
+                <span className="po-line-count">{poLineItems.length}/{MAX_PO_ITEMS}</span>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Description</th>
+                    <th>Qty</th>
+                    <th>Unit Price</th>
+                    <th>Ext. Price</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {poLineItems.map((item, index) => {
+                    const qty = Number(item.qty) || 0
+                    const unitPrice = Number(item.unitPrice) || 0
+                    const extPrice = qty * unitPrice
+                    return (
+                      <tr key={`po-item-${index}`}>
+                        <td>
+                          <input
+                            type="text"
+                            value={item.id}
+                            onChange={(event) =>
+                              updatePoLineItem(index, 'id', event.target.value)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            value={item.description}
+                            onChange={(event) =>
+                              updatePoLineItem(index, 'description', event.target.value)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={item.qty}
+                            onChange={(event) =>
+                              updatePoLineItem(index, 'qty', event.target.value)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.unitPrice}
+                            onChange={(event) =>
+                              updatePoLineItem(index, 'unitPrice', event.target.value)
+                            }
+                          />
+                        </td>
+                        <td>{formatCurrency(extPrice)}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="ghost po-row-remove"
+                            onClick={() => removePoLineItem(index)}
+                            disabled={poLineItems.length <= 1}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              <button
+                type="button"
+                className="ghost po-add-line"
+                onClick={addPoLineItem}
+                disabled={poLineItems.length >= MAX_PO_ITEMS}
+              >
+                Add Line Item
+              </button>
+            </div>
+
+            <div className="po-totals">
+              <div>
+                <span>Subtotal:</span>
+                <strong>{formatCurrency(poSubtotal)}</strong>
+              </div>
+              <label>
+                Tax
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={poTax}
+                  onChange={(event) => setPoTax(event.target.value)}
+                />
+              </label>
+              <label>
+                Shipping
+                <input
+                  type="text"
+                  value={poShipping}
+                  onChange={(event) => setPoShipping(event.target.value)}
+                />
+              </label>
+              <div>
+                <span>Total:</span>
+                <strong>{formatCurrency(poTotal)}</strong>
+              </div>
+            </div>
+
+            <div className="po-terms">
+              <h4>Terms & Conditions</h4>
+              <ul>
+                <li>Net 30 from invoice date.</li>
+                <li>No substitutions without approval.</li>
+                <li>PO number must appear on all invoices.</li>
+                <li>Please include PO# on invoice.</li>
+              </ul>
+            </div>
+
+            <div className="po-signature">
+              <p>Authorized By:</p>
+              <p>Kevin Wagner, Founder & Architect</p>
+              <p>Discrete Development LLC</p>
+            </div>
+              </article>
+            </div>
+          </div>
+        </section>
+      )}
+        </>
+      )}
     </div>
   )
 }

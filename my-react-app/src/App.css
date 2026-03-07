@@ -6,6 +6,113 @@
   z-index: 1;
 }
 
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.brand-logo {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+}
+
+.brand-title {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.top-nav-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.nav-toggle {
+  white-space: nowrap;
+}
+
+.module-screen {
+  min-height: calc(100vh - 7rem);
+  border-radius: 24px;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.88);
+  border: 2px solid rgba(126, 96, 42, 0.35);
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.module-screen-header {
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+}
+
+.module-screen-header h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3.5rem);
+}
+
+.module-screen-subtitle {
+  margin: 0;
+  color: var(--neutral-700);
+}
+
+.module-screen-logo {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+}
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.module-admin {
+  margin-top: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.admin-card {
+  width: min(360px, 100%);
+}
+
+.module-card {
+  text-align: left;
+  padding: 1.2rem;
+  border-radius: 20px;
+  border: 1px solid rgba(80, 63, 44, 0.2);
+  background: linear-gradient(150deg, #fffdf9, #f5eadc);
+  color: var(--neutral-900);
+  box-shadow: 0 14px 30px rgba(80, 63, 44, 0.12);
+}
+
+.module-card h2 {
+  margin: 0 0 0.35rem;
+}
+
+.module-card span {
+  color: var(--neutral-700);
+}
+
 .auth-shell {
   min-height: 100vh;
   display: flex;
@@ -37,6 +144,38 @@
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   align-items: center;
   margin-bottom: 2.5rem;
+}
+
+.timesheet-subnav {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: -1.2rem 0 1.4rem;
+}
+
+.admin-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-subnav {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.timesheet-subnav-button {
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(80, 63, 44, 0.2);
+  background: #f7efe6;
+  color: var(--neutral-800);
+  box-shadow: none;
+}
+
+.timesheet-subnav-button.is-active {
+  background: var(--accent-600);
+  color: #fff;
 }
 
 .eyebrow {
@@ -243,13 +382,15 @@ label {
 
 input,
 select,
+textarea,
 button {
   font-family: inherit;
   font-size: 1rem;
 }
 
 input,
-select {
+select,
+textarea {
   border-radius: 12px;
   border: 1px solid rgba(80, 63, 44, 0.2);
   padding: 0.6rem 0.7rem;
@@ -258,7 +399,8 @@ select {
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: none;
   border-color: var(--accent-600);
   box-shadow: 0 0 0 3px rgba(214, 119, 63, 0.2);
@@ -460,6 +602,22 @@ button:disabled {
   flex-wrap: wrap;
 }
 
+.roster-workbench {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(360px, 1.4fr) minmax(280px, 1fr);
+}
+
+.roster-workbench .panel {
+  max-height: none;
+  overflow: visible;
+}
+
+.roster-column {
+  max-height: 72vh !important;
+  overflow-y: auto !important;
+}
+
 .admin-row {
   display: flex;
   justify-content: space-between;
@@ -507,6 +665,183 @@ button:disabled {
   width: 100%;
 }
 
+.po-shell {
+  border-radius: 24px;
+  padding: 1.8rem;
+  max-height: none;
+  overflow: visible;
+}
+
+.po-layout {
+  display: grid;
+  grid-template-columns: minmax(230px, 320px) 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.po-history {
+  background: #fff;
+  border: 1px solid rgba(80, 63, 44, 0.2);
+  border-radius: 16px;
+  padding: 0.9rem;
+}
+
+.po-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+
+.po-history-header h3 {
+  margin: 0;
+}
+
+.po-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.po-history-item {
+  width: 100%;
+  text-align: left;
+  border-radius: 12px;
+  padding: 0.55rem 0.65rem;
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid rgba(80, 63, 44, 0.2);
+  background: #fffdf9;
+  color: var(--neutral-800);
+  box-shadow: none;
+}
+
+.po-history-item span {
+  font-size: 0.83rem;
+  color: var(--neutral-700);
+}
+
+.po-history-item.is-active {
+  border-color: var(--accent-600);
+  background: #fff5ea;
+}
+
+.po-toolbar {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 1.2rem;
+  flex-wrap: wrap;
+}
+
+.po-doc {
+  background: #fff;
+  border: 1px solid rgba(80, 63, 44, 0.2);
+  border-radius: 18px;
+  padding: 1.4rem;
+  display: grid;
+  gap: 1.2rem;
+}
+
+.po-headline {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(80, 63, 44, 0.2);
+  padding-bottom: 1rem;
+}
+
+.po-headline h2,
+.po-headline h3 {
+  margin: 0;
+}
+
+.po-logo {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+}
+
+.po-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.8rem;
+}
+
+.po-saved-meta {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--neutral-700);
+}
+
+.po-addresses {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.po-addresses h4,
+.po-line-header h4,
+.po-terms h4 {
+  margin: 0 0 0.5rem;
+}
+
+.po-addresses p {
+  margin: 0.2rem 0;
+}
+
+.po-line-items {
+  overflow-x: auto;
+}
+
+.po-line-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.po-line-items table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.9rem;
+}
+
+.po-line-items th,
+.po-line-items td {
+  border: 1px solid rgba(80, 63, 44, 0.2);
+  padding: 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.po-line-items td input {
+  width: 100%;
+}
+
+.po-totals {
+  margin-left: auto;
+  width: min(360px, 100%);
+  display: grid;
+  gap: 0.7rem;
+}
+
+.po-totals > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.po-terms ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.po-signature p {
+  margin: 0.2rem 0;
+}
+
 @keyframes panel-rise {
   from {
     opacity: 0;
@@ -523,9 +858,43 @@ button:disabled {
   .panel-wide {
     grid-column: span 1;
   }
+
+  .po-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .roster-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .roster-column {
+    max-height: 52vh !important;
+  }
 }
 
 @media (max-width: 600px) {
+  .module-screen {
+    min-height: calc(100vh - 5rem);
+    padding: 1.2rem;
+  }
+
+  .top-nav {
+    flex-wrap: wrap;
+  }
+
+  .top-nav-actions {
+    justify-content: flex-start;
+  }
+
+  .po-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .po-headline {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .hero-card {
     padding: 1.4rem;
   }
@@ -565,5 +934,91 @@ button:disabled {
 
   .weekly-bill-button {
     width: 100%;
+  }
+}
+
+@media print {
+  @page {
+    size: Letter;
+    margin: 0.5in;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .top-nav,
+  .module-screen,
+  .admin-shell,
+  .hero,
+  .grid,
+  .po-toolbar,
+  .po-history {
+    display: none !important;
+  }
+
+  .app {
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .po-shell {
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .po-doc {
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    gap: 0.75rem;
+  }
+
+  .po-doc input,
+  .po-doc textarea,
+  .po-doc select {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    color: #000;
+  }
+
+  .po-doc label {
+    gap: 0.2rem;
+    color: #000;
+  }
+
+  .po-line-count,
+  .po-row-remove,
+  .po-add-line,
+  .po-line-items th:last-child,
+  .po-line-items td:last-child {
+    display: none !important;
+  }
+
+  .po-line-items table {
+    margin-bottom: 0.35rem;
+  }
+
+  .po-line-items th,
+  .po-line-items td {
+    padding: 0.3rem 0.35rem;
+  }
+
+  .po-headline {
+    padding-bottom: 0.6rem;
+  }
+
+  .po-logo {
+    width: 74px;
+    height: 74px;
+  }
+
+  .po-terms ul {
+    margin: 0;
   }
 }
