@@ -1129,7 +1129,7 @@ function App() {
       <header className="hero">
         <div>
           <p className="eyebrow">Discrete Development's Work Tools</p>
-          <h1>Timesheet Dashboard</h1>
+          <h1>Timesheets</h1>
           <p className="user-name">
             Welcome, {user?.name || user?.email}
           </p>
