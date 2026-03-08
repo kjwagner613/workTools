@@ -3,7 +3,7 @@
   <h1 style="margin: 0; font-size: 2rem;">
     A Discrete Development Project 
   </h1>
-  <img src="./assets/dd-badge.png" alt="Discrete Development Badge" style="margin-left: 35%; width: 64">
+  <img src="./assets/dd-badge.png" alt="Discrete Development Badge" style="margin-left: 35%; width: 64px">
   </div>
 
 ### Overview
