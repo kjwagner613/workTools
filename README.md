@@ -214,11 +214,11 @@ v1 is intentionally minimal.
 It establishes the structure that all future versions will build on.
 
 
+
 <div style="display: flex; align-items: center; justify-content: center; width: 100%;">
-  <h1 style="margin: 0; font-size: 2rem;">
- 
-  </h1>
-  <img src="assets/SignatureBlock.png" alt="Signagture Block" width="300" />
+  <a href="https://discrete-dev.com" style="text-decoration: none;">
+    <img src="assets/SignatureBlock.png" alt="Signature Block" width="300" />
+  </a>
 </div>
 
 
