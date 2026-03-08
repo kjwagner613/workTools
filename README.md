@@ -1,10 +1,10 @@
-# WorkTools — Operational System for Small Companies
-<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+# WorkTools — Operations for Small Companies
+<div style="display: flex; align-items: center; width: 100%;">
   <h1 style="margin: 0; font-size: 2rem;">
     A Discrete Development Project 
   </h1>
-  <img src="dd-badge.png" alt="Discrete Development Badge" width="64" />
-</div>
+  <img src="./assets/dd-badge.png" alt="Discrete Development Badge" style="margin-left: 35%; width: 64">
+  </div>
 
 ### Overview
 WorkTools is a lightweight, deterministic operational system designed for founders who want clarity, structure, and control from day one. It began as an internal toolset for Discrete Development LLC and has grown into a replicable framework for early‑stage companies who need real operational scaffolding without the noise of bloated SaaS platforms.
@@ -65,7 +65,8 @@ If you choose to adopt a new operational platform in the future, your entire dat
 This is structural sovereignty — not a service contract.
 
 ### What I’m Now Offering
-For new founders — especially those coming out of formation services like Inc Authority — I’m offering WorkTools as a free operational starter system through my “helper” role.
+Initially I created this for the new small business owners coming out of Inc Authority with me — but now I’m offering WorkTools to anyone who needs to start their business infrasructure for a low cost. How about free.
+
 This includes:
 - helping you set up your own Atlas database
 - helping you fork and configure your own GitHub repo
@@ -213,6 +214,12 @@ v1 is intentionally minimal.
 It establishes the structure that all future versions will build on.
 
 
+<div style="display: flex; align-items: center; justify-content: center; width: 100%;">
+  <h1 style="margin: 0; font-size: 2rem;">
+ 
+  </h1>
+  <img src="assets/SignatureBlock.png" alt="Signagture Block" width="300" />
+</div>
 
 
 

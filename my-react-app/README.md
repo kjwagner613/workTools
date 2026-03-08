@@ -1,3 +1,11 @@
-# React + Vite
+# WorkTools — Operations for Small Companies
+<div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+  <h1 style="margin: 0; font-size: 2rem;">
+    A Discrete Development Project 
+  </h1>
+  <img src="../dd-badge.png" alt="Discrete Development Badge" width="64" />
+</div>
 
-Worktools is a project in progress. As i am able to grow Discrete Development, I add the tools i need. Here. One app one brand. From the first timecared and first PO. the the last.
+Please see the README.md at the root of this repository. 
+
+[View full documentation](../README.md)
